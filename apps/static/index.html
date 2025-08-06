@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>병원 안내 키오스크</title>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <style>
+    #status.loading::after {
+      content: ' ⏳';
+      animation: blink 1s infinite;
+    }
+    @keyframes blink {
+      50% { opacity: 0.3; }
+    }
+    .hidden {
+      display: none;
+    }
+    .large-button {
+      font-size: 20px;
+      padding: 12px 24px;
+      margin: 10px;
+      display: inline-block;
+      background-color: #e0e0e0;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <h2>병원 안내 키오스크</h2>
+
+  <!-- 초기 시작 버튼 -->
+  <div id="startSection">
+    <button class="large-button" onclick="startKiosk()">시작</button>
+  </div>
+
+  <!-- 안내 메시지 및 텍스트 항목 -->
+  <div id="mainSection" class="hidden">
+    <!-- 항상 현재 TTS 텍스트가 표시될 영역 -->
+    <p id="ttsDisplayText" style="font-weight: bold; font-size: 18px; margin-top: 20px;">
+      병원 안내 키오스크입니다. 업무는 접수, 접수내역 확인, 길찾기가 있습니다. 원하시는 업무를 말씀해주세요.
+    </p>
+
+    <div>
+      <ul style="font-size: 20px; line-height: 2;">
+        <li>접수</li>
+        <li>접수 내역 확인</li>
+        <li>길찾기</li>
+      </ul>
+    </div>
+
+    <!-- 음성 입력 및 업로드 -->
+    <h3>음성 입력</h3>
+    <input type="file" id="audioFile" accept="audio/wav" />
+    <button id="uploadBtn" onclick="uploadAudio()">업로드</button>
+
+    <h3>결과</h3>
+    <p id="status">상태: 대기 중</p>
+    <p><strong>STT:</strong> <span id="sttText"></span></p>
+    <p><strong>LLM:</strong> <span id="llmText"></span></p>
+    <p><strong>TTS:</strong> <span id="ttsText"></span></p>
+
+    <!-- 숨겨진 오디오 -->
+    <audio id="ttsAudio" style="display:none;"></audio>
+  </div>
+
+  <!-- 서버 상태 -->
+  <h3>서버 상태</h3>
+  <ul id="healthStatus">
+    <li>STT: <span id="sttStatus">⏳</span></li>
+    <li>LLM: <span id="llmStatus">⏳</span></li>
+    <li>TTS: <span id="ttsStatus">⏳</span></li>
+  </ul>
+
+  <script>
+    function startKiosk() {
+      document.getElementById("startSection").classList.add("hidden");
+      document.getElementById("mainSection").classList.remove("hidden");
+
+      const text = "병원 안내 키오스크입니다. 업무는 접수, 접수내역 확인, 길찾기가 있습니다. 원하시는 업무를 선택하거나 말씀해주세요.";
+      document.getElementById("ttsDisplayText").innerText = text;
+
+      fetch("/speak", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.audio_path) {
+          const audio = document.getElementById("ttsAudio");
+          document.getElementById("ttsText").innerText = "🔊 음성 안내 중...";
+          audio.src = `/ttsaudio/${data.audio_path}`;
+          audio.load();
+          audio.play();
+          audio.onended = () => {
+            document.getElementById("ttsText").innerText = "✅ 음성 안내 완료";
+          };
+        }
+      });
+    }
+
+    async function checkHealth() {
+      try {
+        const response = await fetch("/health");
+        const data = await response.json();
+        document.getElementById("sttStatus").innerText = data.stt ? "[v] OK" : "[x] Down";
+        document.getElementById("llmStatus").innerText = data.llm ? "[v] OK" : "[x] Down";
+        document.getElementById("ttsStatus").innerText = data.tts ? "[v] OK" : "[x] Down";
+      } catch (err) {
+        ["sttStatus", "llmStatus", "ttsStatus"].forEach(id => {
+          document.getElementById(id).innerText = "[x] Error";
+        });
+      }
+    }
+
+    async function uploadAudio() {
+      const fileInput = document.getElementById('audioFile');
+      const file = fileInput.files[0];
+      const uploadBtn = document.getElementById("uploadBtn");
+      const status = document.getElementById("status");
+      const ttsText = document.getElementById("ttsText");
+      const ttsDisplayText = document.getElementById("ttsDisplayText");
+
+      if (!file) return alert("파일을 선택하세요");
+
+      uploadBtn.disabled = true;
+      status.innerText = "상태: 업로드 중...";
+      status.classList.add("loading");
+
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const response = await fetch("/upload-audio/", {
+          method: "POST",
+          body: formData,
+        });
+        const data = await response.json();
+        const file_id = data.file_id;
+
+        const ws = new WebSocket(`ws://${location.host}/ws/kiosk`);
+        ws.onmessage = (event) => {
+          const msg = JSON.parse(event.data);
+
+          if (msg.stage === "status") {
+            status.innerText = "상태: " + msg.text;
+          } else if (msg.stage === "stt") {
+            document.getElementById("sttText").innerText = msg.text;
+          } else if (msg.stage === "llm") {
+            document.getElementById("llmText").innerText = msg.text;
+          } else if (msg.stage === "tts") {
+            const audio = document.getElementById("ttsAudio");
+            ttsText.innerText = "🔊 음성 안내 중...";
+            ttsDisplayText.innerText = msg.text;
+            audio.src = msg.audio_url;
+            audio.load();
+            audio.play();
+            audio.onended = () => {
+              ttsText.innerText = "";
+            };
+            uploadBtn.disabled = false;
+            fileInput.value = "";
+          }
+        };
+
+        ws.onopen = () => {
+          status.innerText = "처리 시작...";
+          ws.send(JSON.stringify({ file_id }));
+        };
+
+        ws.onerror = () => {
+          status.innerText = "WebSocket 연결 실패";
+          status.classList.remove("loading");
+        };
+
+        ws.onclose = () => {
+          uploadBtn.disabled = false;
+          status.classList.remove("loading");
+        };
+      } catch (err) {
+        console.error(err);
+        status.innerText = "[x] 오류 발생: " + err.message;
+        status.classList.remove("loading");
+        uploadBtn.disabled = false;
+      }
+    }
+
+    window.onload = () => {
+      checkHealth();
+      setInterval(checkHealth, 10000);
+    };
+  </script>
+</body>
+</html>
