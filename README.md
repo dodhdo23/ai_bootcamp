@@ -69,7 +69,7 @@ python apps-v3/backend/main.py
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload --log-level debug
 ```
 
-##🔌 API 및 WebSocket
+## 🔌 API 및 WebSocket
 ```
 STT 서버: /stt (POST, wav 파일 업로드)
 
