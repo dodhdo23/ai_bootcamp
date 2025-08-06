@@ -1,27 +1,7 @@
 🏥 AI 음성 키오스크 통합 시스템
 이 프로젝트는 고령자 및 병원 환경에 최적화된 음성 기반 키오스크 시스템입니다.
 음성 인식(STT), 자연어 응답(LLM), 음성 합성(TTS), 그리고 전체 흐름을 관리하는 메인 서버로 구성되어 있으며, 각각 독립 실행 가능한 FastAPI 서버로 구성됩니다.
-'''
-📦 전체 디렉토리 구조
-apps/
 
-├── envs/                  # 가상환경 폴더
-│   ├── app-backend        # main.py 실행용
-│   ├── whisper-server     # STT 서버용 (Whisper)
-│   ├── llm-server         # LLM 서버용 (LLaMA)
-│   └── tts-server         # TTS 서버용
-│
-├── servers/
-│   ├── asr/               # STT 서버
-│   │   └── whisper_server.py
-│   ├── llm/               # LLM 서버
-│   │   └── llm1.py
-│   └── tts/               # TTS 서버
-│       └── tts1.py
-├── apps-v3/
-│   └── backend/
-│       └── main.py        # 전체 통합 실행 서버
-'''
 ## 📁 프로젝트 구조
 
 ```plaintext
