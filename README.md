@@ -29,11 +29,11 @@ apps/
 ```
 ## 🧠 구성요소 및 포트 설정
 ```
-구성	설명	파일명	포트	GPU 할당
-STT	음성 → 텍스트 인식	whisper_server.py	9000	GPU 2
-LLM	텍스트 → 자연어 응답 생성	llm1.py	9100	GPU 1
-TTS	텍스트 → 음성 합성	tts1.py	9200	 GPU 3
-APP	전체 통합 및 라우팅	main.py	
+구성 설명	                           파일명	                   포트      GPU 할당
+STT	음성 → 텍스트 인식	               whisper_server.py	       9000	     GPU 2
+LLM	텍스트 → 자연어 응답 생성	         llm1.py	                 9100	     GPU 1
+TTS	텍스트 → 음성 합성	               tts1.py	                 9200	     GPU 3
+APP	전체 통합 및 라우팅	             main.py	                 8000
 ```
 ## ⚙️ 주요 기능 흐름
 ```
